@@ -1,4 +1,6 @@
 import os
+import sys
+import subprocess
 import re
 from pathlib import Path
 
@@ -6,6 +8,7 @@ llama_cpp_python_wheel = (
     "llama-cpp-python --prefer-binary "
     "--extra-index-url=https://jllllll.github.io/llama-cpp-python-cuBLAS-wheels/{}/{}"
 )
+
 try:
     import llama_cpp
 except Exception as e:
@@ -15,11 +18,14 @@ except Exception as e:
     has_cuda = torch.cuda.is_available()
     cuda_version = torch.version.cuda.replace(".", "")
     if cuda_version == "124":
+        # Adjust CUDA version if needed
         cuda_version = "122"
+
     package = llama_cpp_python_wheel.format(
         "AVX2", f"cu{cuda_version}" if has_cuda else "cpu"
     )
-    os.system(f"pip install {package}")
+    # Use the current python environment's pip
+    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
 
 try:
     import llama_cpp
@@ -27,19 +33,17 @@ except Exception as e:
     llama_cpp = None
 
 try:
-    import kgen
-
-    if kgen.__version__ < "0.1.6":
-        raise ImportError
+    from .kgen import models
 except Exception as e:
-    os.system('pip install -U "tipo-kgen>=0.1.6"')
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "-U", "tipo-kgen>=0.1.5"])
+
 
 import torch
 import folder_paths
 
-import kgen.models as models
-import kgen.executor.tipo as tipo
-from kgen.executor.tipo import (
+from .kgen import models
+from .kgen.executor import tipo
+from .kgen.executor.tipo import (
     parse_tipo_request,
     tipo_single_request,
     tipo_runner,
@@ -47,12 +51,13 @@ from kgen.executor.tipo import (
     parse_tipo_result,
     OPERATION_LIST,
 )
-from kgen.formatter import seperate_tags, apply_format
-from kgen.metainfo import TARGET
-from kgen.logging import logger
+from .kgen.formatter import seperate_tags, apply_format
+from .kgen.metainfo import TARGET
+from .kgen.logging import logger
 
-
-models.model_dir = Path(folder_paths.models_dir) / "kgen"
+from pathlib import Path
+FILE_DIR = Path(__file__).parent
+models.model_dir = FILE_DIR / "models"
 os.makedirs(models.model_dir, exist_ok=True)
 logger.info(f"Using model dir: {models.model_dir}")
 
